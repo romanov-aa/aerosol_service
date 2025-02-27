@@ -4,6 +4,7 @@ import pickle
 from scipy import stats
 from scipy.special import inv_boxcox
 import numpy as np
+import psycopg2
 
 
 def preprocessing_2(aod_870, aod440, aod675, aod1020, angstrom, lidar, depolar, latitude, longtitude):
@@ -104,6 +105,10 @@ def predict_reff_carboost_2(aod_870, aod440, aod675, aod1020, angstrom, lidar, d
   result = inv_boxcox(predictions, -0.5221520921344286)
   return result
 
+conn =psycopg2.connect(dbname='aerosol_service', user='user',
+                        password='user', host='127.0.0.1',
+                        port='5432')
+cursor = conn.cursor()
 
 app = Flask(__name__)
 
@@ -132,6 +137,14 @@ def predict():
 
     if isinstance(result, np.ndarray):
         result = result.tolist()  # Преобразование в список
+    
+    query = f"""
+    INSERT INTO statistic VALUES(Default, {aod_870}, {aod440}, {aod675}, {aod1020}, {angstrom}, 
+    {lidar}, {depolar}, {latitude}, {longtitude});
+
+"""
+    cursor.execute(query)
+    conn.commit()
 
     # Возврат результата в формате JSON
     return jsonify({'result': result})
